@@ -1,32 +1,42 @@
-#![allow(unused_variables)]
+use std::process::exit;
 
-use std::process;
+use structopt::StructOpt;
 
-#[macro_use]
-extern crate clap;
-use clap::App;
+
+#[derive(StructOpt, Debug)]
+enum Kvs {
+    /// Get the VALUE associated with KEY
+    Get {
+        key: String
+    },
+    /// Set a KEY with associated VALUE
+    Set {
+        key: String,
+        value: String,
+    },
+    /// Remove KEY
+    Rm {
+        key: String
+    },
+}
+
 
 fn main() {
-    let yaml = load_yaml!("cli.yml");
-    let app = App::from_yaml(yaml)
-        .name(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .about(env!("CARGO_PKG_DESCRIPTION"));
+    let matches = Kvs::clap().get_matches();
 
-    let matches = app.get_matches();
-
-    if let Some(matches) = matches.subcommand_matches("get") {
-        eprintln!("unimplemented")
+    match matches.subcommand() {
+        ("get", Some(_matches)) => {
+            eprintln!("unimplemented");
+            exit(-1)
+        }
+        ("set", Some(_matches)) => {
+            eprintln!("unimplemented");
+            exit(-1)
+        }
+        ("rm", Some(_matches)) => {
+            eprintln!("unimplemented");
+            exit(-1)
+        }
+        _ => unreachable!(),
     }
-
-    if let Some(matches) = matches.subcommand_matches("set") {
-        eprintln!("unimplemented")
-    }
-
-    if let Some(matches) = matches.subcommand_matches("rm") {
-        eprintln!("unimplemented")
-    }
-
-    process::exit(-1);
 }
