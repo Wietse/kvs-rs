@@ -1,0 +1,27 @@
+name: CARGO_PKG_NAME
+version: CARGO_PKG_VERSION
+author: CARGO_PKG_AUTHORS
+about: CARGO_PKG_DESCRIPTION
+
+subcommands:
+    - get:
+        about: Get the VALUE for KEY
+        args:
+            - KEY:
+                help: The key to look up
+                required: true
+    - set:
+        about: Store a VALUE for KEY
+        args:
+            - KEY:
+                help: The key to store
+                required: true
+            - VALUE:
+                help: The value associated with the KEY
+                required: true
+    - rm:
+        about: Remove KEY
+        args:
+            - KEY:
+                help: The key to remove
+                required: true
