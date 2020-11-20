@@ -30,6 +30,7 @@ fn run() -> Result<()> {
         ("get", Some(m)) => {
             // values must be Some(_) else clap would have failed
             let key = m.value_of("key").unwrap();
+            eprintln!("calling store.get({})", key);
             match store.get(key.to_owned())? {
                 Some(v) => println!("{}", &v),
                 None => println!("Key not found"),

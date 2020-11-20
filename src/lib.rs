@@ -1,25 +1,19 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
+// #![allow(dead_code)]
+// #![allow(unused_variables)]
+// #![allow(unused_imports)]
 
 use std::{
     self,
-    fmt::Display,
-    io::ErrorKind,
-    fs::OpenOptions,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     path::{Path, PathBuf},
 };
-use time::OffsetDateTime;
-use serde::{Serialize, Deserialize};
-use serde_json;
 
 
 pub mod error;
 pub mod log;
 
 pub use error::*;
-use log::{Entry, Log};
+use log::{Entry, Log, LogPointer};
 
 
 type KvsEntry = Entry<String, String>;
@@ -32,7 +26,7 @@ const COMPACTION_FACTOR: usize = 2;
 pub struct KvStore {
     dirname: PathBuf,
     log: Log,
-    index: HashMap<String, String>,
+    index: HashMap<String, LogPointer>,
 }
 
 
@@ -57,19 +51,30 @@ impl KvStore {
     pub fn set(&mut self, key: String, value: String) -> Result<()> {
         // eprintln!("KvsStore::set()");
         let entry = KvsEntry::Set(key.clone(), value.clone());
-        self.log.append(&entry)?;
-        self.index.insert(key, value);
+        let log_pointer = self.log.append(&entry)?;
+        self.index.insert(key, log_pointer);
         self.maybe_compact()?;
         Ok(())
     }
 
     pub fn get(&mut self, key: String) -> Result<Option<String>> {
-        Ok(self.index.get(&key).cloned())
+        match self.index.get(&key) {
+            Some(lp) => {
+                let mut result = vec![0_u8; lp.len() as usize];
+                self.log.retrieve(lp, &mut result[..])?;
+                // eprintln!("retrieved {:?}: {:?}", lp, result);
+                match serde_json::from_slice(&result)? {
+                    KvsEntry::Set(_key, value) => Ok(Some(value)),
+                    _ => Err(KvsError::KeyNotFound),
+                }
+            },
+            None => Ok(None),
+        }
     }
 
     pub fn remove(&mut self, key: String) -> Result<()> {
         match self.get(key.clone())? {
-            Some(v) => {
+            Some(_) => {
                 let entry = KvsEntry::Remove(key.clone());
                 self.log.append(&entry)?;
                 self.index.remove(&key);
@@ -82,18 +87,23 @@ impl KvStore {
     fn load_index(&mut self) -> Result<()> {
         for item  in self.log.iter::<KvsEntry>() {
             match item {
-                KvsEntry::Set(k, v) => { self.index.insert(k.to_owned(), v.to_owned()); },
-                KvsEntry::Remove(k) => { self.index.remove(&k); },
+                (KvsEntry::Set(k, _v), lp) => { self.index.insert(k.to_owned(), lp); },
+                (KvsEntry::Remove(k), _lp) => { self.index.remove(&k); },
             }
         }
+        // eprintln!("loaded index: {:?}", self.index);
         Ok(())
     }
 
     fn maybe_compact(&mut self) -> Result<()> {
-        let orig_entries = self.log.len();
-        if self.log.len() > COMPACTION_FACTOR * self.len() {
-            self.log.compact(self.index.iter().map(|(key, value)| { KvsEntry::Set(key.clone(), value.clone()) }))?;
-            println!("Compacted from {} entries to {}", orig_entries, self.log.len());
+        if self.log.hist.len() > 2 {
+            let orig_entries = self.log.len();
+            if orig_entries > COMPACTION_FACTOR * self.len() {
+                self.log.compact(self.index.iter())?;
+                println!("Compacted from {} entries to {}", orig_entries, self.log.len());
+            }
+            // rebuild the index
+            self.load_index()?;
         }
         Ok(())
     }
