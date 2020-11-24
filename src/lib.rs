@@ -5,7 +5,7 @@
 use std::{
     self,
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 
@@ -24,7 +24,6 @@ const COMPACTION_FACTOR: usize = 2;
 
 #[derive(Debug)]
 pub struct KvStore {
-    dirname: PathBuf,
     log: Log,
     index: HashMap<String, LogPointer>,
 }
@@ -35,7 +34,6 @@ impl KvStore {
     pub fn open<P: AsRef<Path>>(dirname: P) -> Result<KvStore> {
         // eprintln!("KvsStore::open()");
         let mut store = KvStore {
-            dirname: PathBuf::from(dirname.as_ref()),
             log: Log::open(dirname.as_ref())?,
             index: HashMap::new(),
         };
@@ -60,10 +58,7 @@ impl KvStore {
     pub fn get(&mut self, key: String) -> Result<Option<String>> {
         match self.index.get(&key) {
             Some(lp) => {
-                let mut result = vec![0_u8; lp.len() as usize];
-                self.log.retrieve(lp, &mut result[..])?;
-                // eprintln!("retrieved {:?}: {:?}", lp, result);
-                match serde_json::from_slice(&result)? {
+                match self.log.retrieve(lp)? {
                     KvsEntry::Set(_key, value) => Ok(Some(value)),
                     _ => Err(KvsError::KeyNotFound),
                 }
