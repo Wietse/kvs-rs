@@ -1,12 +1,23 @@
-use std::env;
+use std::{
+    env,
+    path::PathBuf,
+};
 use structopt::StructOpt;
 use kvs::{KvStore, Result};
 
 
+#[derive(StructOpt, Debug)]
+struct Kvs {
+    #[structopt(short, long, parse(from_os_str))]
+    path: Option<PathBuf>,
+    #[structopt(subcommand)]
+    cmd: Command,
+}
+
 // Command line argument parsing is done with structopt.
 // This generates a clap::App which can then be used as such.
 #[derive(StructOpt, Debug)]
-enum Kvs {
+enum Command {
     /// Get the VALUE associated with KEY
     Get {
         key: String
@@ -24,8 +35,10 @@ enum Kvs {
 
 
 fn run() -> Result<()> {
+    let opts = Kvs::from_args();
+    let dirname = opts.path.unwrap_or(env::current_dir()?);
+    let mut store = KvStore::open(dirname)?;
     let matches = Kvs::clap().get_matches();
-    let mut store = KvStore::open(env::current_dir()?)?;
     match matches.subcommand() {
         ("get", Some(m)) => {
             // values must be Some(_) else clap would have failed
