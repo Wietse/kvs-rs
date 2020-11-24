@@ -11,8 +11,11 @@ use std::{
     path::{Path, PathBuf},
 };
 use time::OffsetDateTime;
-use serde::{Serialize, Deserialize};
-use serde::de::DeserializeOwned;
+use serde::{
+    Serialize,
+    Deserialize,
+    de::DeserializeOwned
+};
 use serde_json;
 
 use crate::error::*;
@@ -46,8 +49,7 @@ pub struct LogPartition {
 impl LogPartition {
 
     fn new(dirname: &Path) -> Result<(LogPartition, File)> {
-        // TODO: this *could* turn into an endless loop, more defensive to limit the number of
-        //       iterations?
+        // TODO: more defensive to limit the number of iterations?
         loop {
             let file_id = OffsetDateTime::now_utc().timestamp_nanos() as u128;
             let name = LogPartition::build_file_name(file_id);
@@ -224,7 +226,6 @@ impl Log {
             K: Sized + Serialize,
             V: Sized + Serialize,
     {
-        // eprintln!("Log::append()");
         if self.active.entry_count == u16::MAX {
             self.initialize_new_active()?;
         }
@@ -332,7 +333,6 @@ impl Log {
     }
 
     fn dump_meta(&mut self) -> Result<()> {
-        // TODO: error handling
         let fh = OpenOptions::new().write(true).create(true).open(&meta_file_path(&self.dirname))?;
         serde_json::to_writer(fh, self)?;
         Ok(())
@@ -379,9 +379,7 @@ impl<'de, I: Deserialize<'de>> Iterator for LogIter<'de, I> {
             match self.partitions.pop_front() {
                 Some(partition) => {
                     self.current_file_id = partition.file_id;
-                    let mut path = PathBuf::from(&self.dirname);
-                    path.push(partition.file_name());
-                    self.current_iterator = Some(LogPartitionIter::new(path));
+                    self.current_iterator = Some(LogPartitionIter::new(partition.full_path(&self.dirname)));
                 },
                 None => {
                     return None;
@@ -412,5 +410,4 @@ impl<'de, I: Deserialize<'de>> Iterator for LogIter<'de, I> {
         }
     }
 
-    // TODO: implement the reverse iterator
 }
